@@ -2,51 +2,12 @@ import axios from 'axios';
 import { config } from './config/config';
 import * as querystring from 'querystring';
 import { getUserConfig, setUserConfig, UserConfig } from './database';
+import { AuthResult, Pot, Account, Webhook } from './models';
 
 export const TOKEN_URL = 'https://api.monzo.com/oauth2/token';
 export const ACCOUNTS_URL = 'https://api.monzo.com/accounts';
 export const POTS_URL = 'https://api.monzo.com/pots';
 export const WEBHOOKS_URL = 'https://api.monzo.com/webhooks';
-
-export interface AuthResult {
-  access_token: string,
-  client_id: string,
-  expires_in: number,
-  refresh_token?: string,
-  token_type: string,
-  user_id: string
-}
-
-export interface BaseAccount {
-  id: string;
-  closed: boolean;
-  created: string; // ISO-8601 date
-  description: string;
-  type: 'uk_prepaid' | 'uk_retail';
-}
-
-export interface PrepaidAccount extends BaseAccount {
-  type: 'uk_prepaid';
-}
-
-export interface RetailAccount extends BaseAccount {
-  type: 'uk_retail';
-  account_number: string;
-  sort_code: string;
-}
-
-export type Account = PrepaidAccount | RetailAccount;
-
-export interface Pot {
-  id: string;
-  name: string;
-  style: string;
-  balance: number; // In pence
-  currency: number;
-  created: string; // ISO-8601
-  updated: string; // ISO-8601
-  deleted: boolean;
-}
 
 export async function exchangeAuthCode(code: string, redirectUri: string): Promise<UserConfig> {
 
@@ -113,14 +74,6 @@ export async function getPots(accessToken: string): Promise<Account[]> {
   return [];
 }
 
-interface WebhookResult {
-  webhook: {
-    account_id: string;
-    id: string;
-    url: string;
-  };
-}
-
 export async function registerWebhook(userConfig: UserConfig): Promise<string | null> {
   const { webhook, accountId, accessToken } = userConfig;
 
@@ -132,7 +85,7 @@ export async function registerWebhook(userConfig: UserConfig): Promise<string | 
     return null;
   }
 
-  const result = await axios.post<WebhookResult>(WEBHOOKS_URL, querystring.stringify({
+  const result = await axios.post<{ webhook: Webhook }>(WEBHOOKS_URL, querystring.stringify({
       account_id: accountId,
       url: `${config.apiRoot}/webhook`
     }), {

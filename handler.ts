@@ -1,10 +1,11 @@
 import { aws, HandlerRequest, HandlerResponse } from 'serverless-api-handlers';
 import { config } from './config/config';
 import { v4 as uuid } from 'uuid';
-import { exchangeAuthCode, getAccounts, getPots, Pot, Account, registerWebhook } from './monzo';
+import { exchangeAuthCode, getAccounts, getPots, registerWebhook } from './monzo';
 import settingsHtml from './settings.html';
 import * as querystring from 'querystring';
-import { getConfig, getUserConfig, setConfig, setUserConfig } from './database';
+import { getUserConfig, setUserConfig } from './database';
+import { Account, Pot } from './models';
 
 async function onWebhook(request: HandlerRequest): Promise<HandlerResponse> {
   // TODO: Get Monzo Types and respond to webhook
