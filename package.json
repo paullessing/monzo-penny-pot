@@ -18,6 +18,7 @@
   "license": "MIT",
   "dependencies": {
     "axios": "^0.18.0",
+    "node-uuid": "^1.4.8",
     "serverless-api-handlers": "paullessing/serverless-api-handlers"
   }
 }
