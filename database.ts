@@ -6,12 +6,15 @@ const docClient = new DocumentClient();
 const TABLE_NAME = 'lambda-config';
 const CONFIG_ID = 'monzo-penny-pot';
 
+let lastConfig: StoredConfig;
+
 export interface UserConfig {
   userId: string;
   accountId: string | null;
   refreshToken: string;
   accessToken: string | null;
   potId: string | null;
+  webhook: string | null;
 }
 
 export interface StoredConfig {
@@ -19,6 +22,10 @@ export interface StoredConfig {
 }
 
 export async function getConfig(): Promise<StoredConfig> {
+  if (lastConfig) {
+    return lastConfig;
+  }
+
   const props: DocumentClient.GetItemInput = {
     TableName: TABLE_NAME,
     Key: { id: CONFIG_ID }
@@ -30,12 +37,25 @@ export async function getConfig(): Promise<StoredConfig> {
     if (!result|| !result.Item || !result.Item.value) {
       return await setConfig({});
     } else {
-      return result.Item.value;
+      lastConfig = result.Item.value;
+      return lastConfig;
     }
   } catch (e) {
     console.error('Failed to fetch config', e);
     throw e;
   }
+}
+
+export async function getUserConfig(userId: string): Promise<UserConfig> {
+  const config = await getConfig();
+  return config[userId] || {
+    userId: userId,
+    potId: null,
+    accountId: null,
+    webhook: null,
+    refreshToken: null,
+    accessToken: null
+  };
 }
 
 export async function setConfig(config: StoredConfig): Promise<StoredConfig> {
@@ -48,5 +68,19 @@ export async function setConfig(config: StoredConfig): Promise<StoredConfig> {
   };
 
   await docClient.put(itemToInsert).promise();
+
+  lastConfig = config;
+
+  return config;
+}
+
+export async function setUserConfig(config: UserConfig): Promise<UserConfig> {
+  const dbConfig = await getConfig();
+
+  await setConfig({
+    ...dbConfig,
+    [config.userId]: config
+  });
+
   return config;
 }

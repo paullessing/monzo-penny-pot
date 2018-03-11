@@ -36,3 +36,9 @@ functions:
       - http:
           method: get
           path: login
+  setup:
+    handler: handler.setup
+    events:
+      - http:
+          method: post
+          path: setup
