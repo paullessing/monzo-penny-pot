@@ -1,17 +1,20 @@
 import { aws, HandlerRequest, HandlerResponse } from 'serverless-api-handlers';
 import { config } from './config/config';
 import { v4 as uuid } from 'uuid';
-import { exchangeAuthCode, getAccounts, getPots, registerWebhook } from './monzo';
+import { exchangeAuthCode, getAccounts, getPots, moveMoneyToPot, refreshAuthToken, registerWebhook } from './monzo';
 import settingsHtml from './settings.html';
 import * as querystring from 'querystring';
-import { getUserConfig, setUserConfig } from './database';
+import { getUserConfig, getUserConfigByAccountId, setUserConfig } from './database';
 import { Account, Pot } from './models';
+import { Transaction } from './models/transaction.model';
 
 async function onWebhook(request: HandlerRequest): Promise<HandlerResponse> {
-  // TODO: Get Monzo Types and respond to webhook
-  console.log(request);
+  console.log('\n\n\nWEBHOOK CALLED\n', request.body);
+
+  const result = await roundUp(request);
+
   return {
-    statusCode: 200
+    statusCode: result ? 200 : 204
   };
 }
 
@@ -126,6 +129,68 @@ async function onSetup(request: HandlerRequest): Promise<HandlerResponse> {
       statusCode: 200,
       body: 'Webhook already exists'
     };
+  }
+}
+
+async function roundUp(request: HandlerRequest): Promise<boolean> {
+  if (!request.body) {
+    console.log('ABORT: No body');
+    return false;
+  }
+
+  const body: { type: string, data: Transaction } = tryParse(request.body);
+  if (!body) {
+    console.log('ABORT: Body parse result is empty');
+    return false;
+  }
+
+  if (body.type !== 'transaction.created') {
+    console.log('ABORT: Missing body or wrong type', request.body, request.body.type);
+    return false;
+  }
+
+  console.log('\n\nTRANSACTION CREATED\n', request);
+  const tx: Transaction = body.data;
+  // WARNING: NEVER ALLOW POTS TO BE USED HERE - it will cause infinite loops!
+  if (tx.scheme !== 'mastercard' || tx.amount >= 0) {
+    console.log('ABORT: Wrong scheme or positive amount');
+    return false;
+  }
+
+  let userConfig = await getUserConfigByAccountId(tx.account_id);
+  if (!userConfig) {
+    console.log('ABORT: No user config found for account ID', tx.account_id);
+    return false;
+  }
+
+  const diffAmount = 100 - (Math.abs(tx.amount) % 100)
+
+  if (diffAmount < 0 || diffAmount > 100) {
+    throw new Error(`Surprising amount: ${diffAmount} from ${tx.amount}`);
+  }
+
+  if (diffAmount === 0) {
+    console.log('ABORT: Amount is already round');
+    return false;
+  }
+
+  console.log('Refreshing auth token');
+  userConfig = await refreshAuthToken(userConfig.userId);
+
+  console.log(`About to move ${diffAmount} to a pot`);
+  const result = await moveMoneyToPot(userConfig, diffAmount, tx.id);
+
+  console.log(`\nSUCCESS: Moved £${(diffAmount / 100).toFixed(2)} to pot!`, result);
+
+  return true;
+}
+
+function tryParse<T>(data: string): T | null {
+  try {
+    return JSON.parse(data);
+  } catch (e) {
+    console.log('Failed to parse data: "' + data + '"', e);
+    return null;
   }
 }
 

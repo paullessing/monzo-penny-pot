@@ -2,7 +2,7 @@ import axios from 'axios';
 import { config } from './config/config';
 import * as querystring from 'querystring';
 import { getUserConfig, setUserConfig, UserConfig } from './database';
-import { AuthResult, Pot, Account, Webhook } from './models';
+import { Account, AuthResult, Pot, Webhook } from './models';
 
 export const TOKEN_URL = 'https://api.monzo.com/oauth2/token';
 export const ACCOUNTS_URL = 'https://api.monzo.com/accounts';
@@ -100,4 +100,20 @@ export async function registerWebhook(userConfig: UserConfig): Promise<string | 
   });
 
   return webhookId;
+}
+
+export async function moveMoneyToPot(config: UserConfig, amount: number, id: string): Promise<Pot> {
+  const url = `${POTS_URL}/${config.potId}/deposit`;
+
+  const dedupeId = `send-${amount}-forTx-${id}`;
+
+  const result = await axios.put<Pot>(url, querystring.stringify({
+    source_account_id: config.accountId,
+    amount,
+    dedupe_id: dedupeId
+  }), {
+    headers: { 'Authorization': `Bearer ${config.accessToken}` }
+  });
+
+  return result.data;
 }

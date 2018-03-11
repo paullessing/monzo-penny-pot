@@ -1,4 +1,4 @@
-import { Pot, Account } from './monzo';
+import { Pot, Account } from './models';
 
 export interface Args {
   userId: string;

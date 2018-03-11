@@ -58,6 +58,16 @@ export async function getUserConfig(userId: string): Promise<UserConfig> {
   };
 }
 
+export async function getUserConfigByAccountId(accountId: string): Promise<UserConfig | null> {
+  const config = await getConfig();
+  for (const userId of Object.keys(config)) {
+    if (config[userId].accountId === accountId) {
+      return config[userId];
+    }
+  }
+  return null;
+}
+
 export async function setConfig(config: StoredConfig): Promise<StoredConfig> {
   const itemToInsert: DocumentClient.PutItemInput = {
     TableName: TABLE_NAME,
