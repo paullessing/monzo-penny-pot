@@ -12,9 +12,9 @@ provider:
   memorySize: 256
 
 functions:
-  hello:
-    handler: handler.hello
+  webhook:
+    handler: handler.webhook
     events:
       - http:
-          method: get
-          path: hello
+          method: post
+          path: webhook
