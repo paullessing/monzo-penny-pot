@@ -163,7 +163,7 @@ async function roundUp(request: HandlerRequest): Promise<boolean> {
     return false;
   }
 
-  const diffAmount = 100 - (Math.abs(tx.amount) % 100)
+  const diffAmount = (100 - (Math.abs(tx.amount) % 100)) % 100;
 
   if (diffAmount < 0 || diffAmount > 100) {
     throw new Error(`Surprising amount: ${diffAmount} from ${tx.amount}`);
